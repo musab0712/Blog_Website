@@ -2,6 +2,15 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const _ = require("lodash");
+const mongoose = require("mongoose");
+
+mongoose.set('strictQuery', true);
+
+main().catch(err => console.log(err));
+
+async function main() {
+  await mongoose.connect('mongodb://127.0.0.1:27017/BlogWebsiteDB');
+}
 
 
 const homeStartingContent = "It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy.";
@@ -14,7 +23,13 @@ const app = express();
 
 const port = 3000;
 
-const totalPost = [];
+const postSchema = new mongoose.Schema({
+    title : String,
+    content : String
+});
+
+const Post = mongoose.model('Post', postSchema);
+
 
 app.set('view engine', 'ejs');
 
@@ -23,10 +38,12 @@ app.use(express.static("public"));
 
 
 app.get("/", (req, res) => {
-    res.render("home", {
-        startingContent : homeStartingContent,
-        posts : totalPost
-    });
+    Post.find({}, (err, posts) => {
+        res.render("home", {
+          startingContent: homeStartingContent,
+          posts: posts
+          });
+      });
 });
 
 app.get("/about", (req, res) => {
@@ -43,24 +60,23 @@ app.get("/compose", (req, res) => {
 });
 
 app.post("/compose", (req,res) => {
-    const post = {
+    const post = new Post({
         title : req.body.postTitle,
         content : req.body.postContent
-    };
-    totalPost.push(post);
+    });
+    post.save();
     res.redirect("/");
 })
 
-app.get("/posts/:postName", (req, res) => {
-    let name = _.kebabCase(req.params.postName);
-    console.log(name);
-    totalPost.forEach(posts => {
-        if(name === _.kebabCase(posts.title)) {
-            res.render("post", {
-                title : posts.title,
-                content : posts.content
-            });
-        }
+app.get("/posts/:postID", (req, res) => {
+
+    const requestedID = req.params.postID;
+
+    Post.findOne({_id : requestedID}, (err, post) => {
+        res.render("post", {
+            title: post.title,
+            content: post.content
+        });
     });
 });
 
